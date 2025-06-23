@@ -1,0 +1,107 @@
+version: "3.5"
+
+services:
+  gateway:
+    image: reportportal/service-gateway:5.7.11
+    container_name: rp_gateway
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - uat
+    environment:
+      - RP_JWT_SECRET=secret
+      - RP_AUTH_CLIENT_SECRET=secret
+    networks:
+      - reportportal
+
+  index:
+    image: reportportal/service-index:5.7.11
+    container_name: rp_index
+    restart: always
+    depends_on:
+      - analyzer
+    networks:
+      - reportportal
+
+  ui:
+    image: reportportal/service-ui:5.7.11
+    container_name: rp_ui
+    restart: always
+    ports:
+      - "8081:8080"
+    depends_on:
+      - gateway
+    networks:
+      - reportportal
+
+  uat:
+    image: reportportal/service-authorization:5.7.11
+    container_name: rp_auth
+    restart: always
+    depends_on:
+      - postgres
+    networks:
+      - reportportal
+
+  api:
+    image: reportportal/service-api:5.7.11
+    container_name: rp_api
+    restart: always
+    depends_on:
+      - postgres
+      - analyzer
+    networks:
+      - reportportal
+
+  analyzer:
+    image: reportportal/service-analyzer:5.7.11
+    container_name: rp_analyzer
+    restart: always
+    depends_on:
+      - elasticsearch
+    networks:
+      - reportportal
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    container_name: rp_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 1g
+    ports:
+      - "9200:9200"
+    networks:
+      - reportportal
+
+  postgres:
+    image: postgres:12-alpine
+    container_name: rp_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: reportportal
+      POSTGRES_USER: reportportal
+      POSTGRES_PASSWORD: reportportal
+    ports:
+      - "5432:5432"
+    networks:
+      - reportportal
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rp_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - reportportal
+
+networks:
+  reportportal:
+    driver: bridge
